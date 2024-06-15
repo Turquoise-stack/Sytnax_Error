@@ -82,16 +82,17 @@ TODO:
 
     <div class="map-overlay top">
         <div class="map-overlay-inner">
+            <!--
             <fieldset class="select-fieldset">
                 <label>Select light preset</label>
                 <select id="lightPreset" name="lightPreset">
-                    <!-- Each value matches a light preset -->
                     <option value="dawn">Dawn</option>
                     <option value="day" selected="">Day</option>
                     <option value="dusk">Dusk</option>
                     <option value="night">Night</option>
                 </select>
             </fieldset>
+        -->
             <fieldset>
                 <label for="showPlaceLabels">Show place labels</label>
                 <input type="checkbox" id="showPlaceLabels" checked="">
@@ -117,7 +118,8 @@ TODO:
     </div>
 
     <script>
-
+        const presets = ['dawn', 'day', 'dusk', 'night']
+        var curPr = 0
         const slider = document.getElementById('time-slider');
         const hourLabel = document.getElementById('hour');
         function rotateCamera(timestamp) {
@@ -130,20 +132,26 @@ TODO:
         mapboxgl.accessToken = '';
         const map = new mapboxgl.Map({
             container: 'map', // container ID
-            center: [21.045303247847162, 52.25619693265087], // starting position [lng, lat]
-            zoom: 18.1, // starting zoom
+            //center: [21.045303247847162, 52.25619693265087], // starting position [lng, lat] - google campus
+            center: [21.006037913053945,52.23187082719522 ], // starting position [lng, lat] - pkin
+            //zoom: 18.1, // starting zoom
+            zoom: 16.1, // starting zoom for pkin
             pitch: 62, // starting pitch
             bearing: -20 // starting bearing
         });
 
         rotateCamera(0)
-        mapboxgl.Light
-        document
-            .getElementById('lightPreset')
-            .addEventListener('change', function () {
-                map.setConfigProperty('basemap', 'lightPreset', this.value);
-            });
-
+        setInterval(()=>{
+            curPr = (curPr + 1) % presets.length
+            console.log(curPr)
+            map.setConfigProperty('basemap', 'lightPreset',presets[curPr])
+        }, 5000)
+//        document
+//            .getElementById('lightPreset')
+//            .addEventListener('change', function () {
+//                map.setConfigProperty('basemap', 'lightPreset', this.value);
+//            });
+//
         document
             .querySelectorAll('.map-overlay-inner input[type="checkbox"]')
             .forEach((checkbox) => {
