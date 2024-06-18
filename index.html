@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Change a map's style configuration property</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js"></script>
+    <script src='https://unpkg.com/suncalc@1.8.0/suncalc.js'></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Helvetica Neue', Arial, Helvetica, sans-serif;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+
+        .map-overlay {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background-color: white;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+            z-index: 1;
+            width: 220px;
+        }
+
+        .map-overlay h3 {
+            margin: 0 0 10px;
+            font-size: 16px;
+        }
+
+        .map-overlay label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .map-overlay input,
+        .map-overlay button {
+            width: calc(100% - 20px);
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+        }
+
+        .map-overlay button {
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border: none;
+        }
+
+        .map-overlay button:hover {
+            background-color: #0056b3;
+        }
+
+        .response-display {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background-color: white;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+            z-index: 1;
+            max-width: 500px;
+            max-height: 400px;
+            overflow-y: auto;
+            display: flex;
+            flex-wrap: wrap;
+        }
+
+        .response-display h3 {
+            width: 100%;
+            margin: 0 0 10px;
+            font-size: 16px;
+        }
+
+        .response-display .response-item {
+            margin-bottom: 10px;
+            flex: 1 1 45%;
+        }
+
+        .response-display .response-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .response-display .response-label {
+            font-weight: bold;
+        }
+
+        .response-display .response-value {
+            margin-left: 5px;
+        }
+
+        .mapboxgl-marker {
+            position: absolute;
+            background-color: red;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: 2px solid white;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="map"></div>
+
+    <div class="map-overlay">
+        <h3>Solar Calculator</h3>
+        <label for="address">Address:</label>
+        <input type="text" id="address" placeholder="Enter address">
+        <label for="kw">kW:</label>
+        <input type="number" step="any" id="kw" placeholder="Enter kW">
+        <button id="calculate">Calculate</button>
+    </div>
+
+    <div class="response-display" id="responseDisplay">
+        <h3>Response</h3>
+        <div class="response-item"><span class="response-label">Address:</span><span class="response-value" id="responseAddress"></span></div>
+        <div class="response-item"><span class="response-label">Latitude:</span><span class="response-value" id="responseLatitude"></span></div>
+        <div class="response-item"><span class="response-label">Longitude:</span><span class="response-value" id="responseLongitude"></span></div>
+        <div class="response-item"><span class="response-label">Yearly kWh Production:</span><span class="response-value" id="responseYearlyProduction"></span></div>
+        <div class="response-item"><span class="response-label">Yearly Production in USD:</span><span class="response-value" id="responseYearlyProductionUSD"></span></div>
+        <div class="response-item"><span class="response-label">Solar Installation Cost in USD:</span><span class="response-value" id="responseCost"></span></div>
+        <div class="response-item"><span class="response-label">ROI:</span><span class="response-value" id="responseROI"></span></div>
+        <div class="response-item"><span class="response-label">Comment:</span><span class="response-value" id="responseComment"></span></div>
+    </div>
+
+    <div class="mapboxgl-marker"></div>
+
+    <script>
+        const presets = ['dawn', 'day', 'dusk', 'night'];
+        var curPr = 0;
+
+        function rotateCamera(timestamp) {
+            map.rotateTo((timestamp / 100) % 360, { duration: 0 });
+            requestAnimationFrame(rotateCamera);
+        }
+
+        mapboxgl.accessToken = '';
+        const map = new mapboxgl.Map({
+            container: 'map',
+            center: [21.006037913053945, 52.23187082719522],
+            zoom: 16.1,
+            pitch: 62,
+            bearing: -20
+        });
+
+        rotateCamera(0);
+
+        setInterval(() => {
+            curPr = (curPr + 1) % presets.length;
+            map.setStyle(`mapbox://styles/mapbox/${presets[curPr]}-v10`);
+        }, 5000);
+
+        document.getElementById('calculate').addEventListener('click', function () {
+            const address = document.getElementById('address').value;
+            const kw = parseFloat(document.getElementById('kw').value);
+
+            if (!address || isNaN(kw)) {
+                alert('Please enter both a valid address and kW.');
+                return;
+            }
+
+            fetch('http://127.0.0.1:5000/api/browse', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    address: address,
+                    peakpower: kw
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    console.log(data);
+
+                    // Update map with new coordinates
+                    const latitude = data.Latitude;
+                    const longitude = data.Longitude;
+                    if (latitude && longitude) {
+                        map.setCenter([longitude, latitude]);
+                    }
+
+                    // Display response details in the response display box
+                    document.getElementById('responseAddress').textContent = data.Address;
+                    document.getElementById('responseLatitude').textContent = data.Latitude;
+                    document.getElementById('responseLongitude').textContent = data.Longitude;
+                    document.getElementById('responseYearlyProduction').textContent = data['Yearly kWh Production'];
+                    document.getElementById('responseYearlyProductionUSD').textContent = data['Yearly Production in USD'];
+                    document.getElementById('responseCost').textContent = data['Solar Installation Cost in USD'];
+                    document.getElementById('responseROI').textContent = data.ROI;
+                    document.getElementById('responseComment').textContent = data.Comment;
+
+                    // Display monthly kWh production
+                    const monthlyProduction = data['Monthly kWh Production'];
+                    let monthlyProductionHTML = '<div><strong>Monthly kWh Production:</strong></div>';
+                    for (const month in monthlyProduction) {
+                        monthlyProductionHTML += `<div>${month}: ${monthlyProduction[month]} kWh</div>`;
+                    }
+                    document.getElementById('responseBody').innerHTML = monthlyProductionHTML;
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.getElementById('responseBody').textContent = `Error: ${error}`;
+                });
+        });
+    </script>
+
+</body>
+
+</html>
